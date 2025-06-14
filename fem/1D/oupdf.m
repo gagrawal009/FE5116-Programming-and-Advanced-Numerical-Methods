@@ -1,0 +1,9 @@
+function y=oupdf(x,t,model)
+   x0=model.x0;
+   k=model.kappa;
+   s=model.sigma;
+   th=model.theta;
+   r=exp(-k*t);
+   m=th+(x0-th)*r;
+   v=s^2/(2*k)*(1-r*r);
+   y=normpdf(x,m,sqrt(v));

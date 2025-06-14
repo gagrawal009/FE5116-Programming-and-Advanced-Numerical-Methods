@@ -1,0 +1,377 @@
+
+\documentclass[10pt]{article}
+%\usepackage{a4wide}
+%\usepackage{graphicx}
+\usepackage{amsfonts}
+\usepackage{multirow}
+%\usepackage{algorithm}
+%\usepackage{algpseudocode}
+%\usepackage{algorithmicx}
+\usepackage{amsmath, amssymb}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage[margin=0.8in]{geometry}
+\usepackage[pdftex]{hyperref}
+
+\hypersetup{
+    bookmarks=true,         % show bookmarks bar?
+    unicode=false,          % non-Latin characters in Acrobats bookmarks
+    pdftoolbar=true,        % show Acrobats toolbar?
+    pdfmenubar=true,        % show Acrobats menu?
+    pdffitwindow=false,     % window fit to page when opened
+    pdfstartview={FitH},    % fits the width of the page to the window
+    pdftitle={},    % title
+    pdfauthor={Fabio Cannizzo},     % author
+    pdfsubject={Numerical Solution of the Fokker Planck Equation for Scalar Stochastic Processes via the Finite Elements},   % subject of the document
+    pdfcreator={},   % creator of the document
+    pdfproducer={}, % producer of the document
+    pdfkeywords={}, % list of keywords
+    pdfnewwindow=true,      % links in new window
+    colorlinks=true,       % false: boxed links; true: colored links
+    linkcolor=black,%darkblue,           % color of internal links
+    citecolor=black,%darkblue,        % color of links to bibliography
+    filecolor=magenta,      % color of file links
+    urlcolor=cyan           % color of external links
+}
+
+\newcommand {\floor}[1]{ \left \lfloor #1 \right \rfloor }
+\newcommand {\ceil} [1] { \left \lceil  #1 \right \rceil  }
+\newcommand {\expc}[1] {\mathbb{E}\left[ #1 \right]}
+\newcommand {\var}[1] {\mathbb{V}ar\left[ #1 \right]}
+\newcommand {\condexpc}[2] {\mathbb{E}\left[ \, #1 \, | \, #2 \, \right]}
+\newcommand {\done}[2] {#1_{#2}   }
+\newcommand {\dtwo}[2] {#1_{#2#2} }
+\newcommand {\dmix}[3] {#1_{#2#3} }
+\newcommand {\dpone}[2] { \partial_{#2}\! {#1}   }
+\newcommand {\dptwo}[2] { \partial_{#2#2}\! {#1} }
+\newcommand {\dpmix}[3] { \partial_{#2#3}\! {#1} }
+\newcommand {\partialone}[2]{\frac{\partial #1 }{\partial #2} }
+\newcommand {\partialtwo}[2]{\frac{\partial^2 #1 }{\partial #2^2} }
+\newcommand {\partialmix}[3]{\frac{\partial^2 #1 }{\partial #2 \partial #3} }\newcommand {\fin}  {\textbf{input:\;}}
+\newcommand {\spotdate}[1]{ #1 + \gamma(#1) }
+\newcommand {\doubleint}[1]{ \int_x \int_v \left\{ #1 \right\} \omega \, dvdx}
+\newcommand {\dint}[1]{ \int_0^1 \int_0^1 #1 \, d\xi d\phi }
+\newcommand {\dintsplit}[2]{ \int_0^1 #1 \, d\xi \int_0^1 #2 \,  d\phi }
+\newcommand {\dv}[1]{\Delta_{#1}}
+\newcommand {\dvc}[0]{\dv{c}}
+\newcommand {\dintv}[1]{ \int_0^1 #1 \, d\phi }
+
+%\parindent=25pt
+\parskip 0.05in
+
+\title{Numerical Solution of the Fokker Planck Equation for Scalar Stochastic Processes with the Finite Element Method}
+\author{Fabio Cannizzo}
+\date{25 Mar 2015}
+
+\begin{document}
+
+\maketitle
+
+%----------------------------------------------------------------------------------------------------------%
+\section{Abstract}
+\label{sec:abstract}
+%----------------------------------------------------------------------------------------------------------%
+
+This paper discuss the numerical solution of the Fokker Planck equation for some well known scalar Ito's processes with the finite element method.
+
+%----------------------------------------------------------------------------------------------------------%
+\section{Problem Statement}
+\label{sec:process}
+%----------------------------------------------------------------------------------------------------------%
+
+An Ito's process has dynamic
+\begin{equation}
+\label{eq:model}
+   dX = a(t,X) dt + b(t,X) dW
+\end{equation}
+and the transition probability $p(x,t)$ for the process ${X_t}$ to reach the state $x$ at time $t$, satisfies the forward Kolmogorov equation, also known as Fokker Planck equation (for derivation see \cite{shreve}):
+\begin{equation}
+\label{eq:fokker}
+    p_t=  -(ap)_x+\frac{1}{2}  \, (b^2p)_{xx}
+\end{equation}
+with initial value problem
+\begin{equation}
+\label{eq:ivp}
+    p(x,0)=\delta(X_0)
+\end{equation}
+Goal of this paper is to integrate numerically equation \eqref{eq:fokker} via the finite element method in the closed domain $x \in \Omega=[x_l,x_h]$ and $t \in [0,T]$, with the appropriate boundary conditions specified in correspondence of the lines $x=x_l$ and $x=x_h$.
+
+%----------------------------------------------------------------------------------------------------------%
+\section{Weak Formulation}
+\label{sec:weakform}
+%----------------------------------------------------------------------------------------------------------%
+
+Given a generic test function $\omega \in \mathbb{H}^1$, equation \eqref{eq:fokker} is rewritten in weak form on the domain $\Omega$
+\begin{equation*}
+\int_{\Omega} p_t\, \omega\, dx = \int_{\Omega}\left[-(ap)_x+\frac{1}{2}
+                  	  (b^2p)_{xx}
+             \right] \, \omega\, dx
+\end{equation*}
+The term with second derivatives can be integrated by parts:
+\begin{equation*}
+   \int_{\Omega}  (b^2p)_{xx}\, \omega\, dx = [ (b^2p)_x \, \omega ]_{x_{l}}^{x_{h}}
+	- \int_{\Omega}  (b^2p)_x \, \omega_{x}\, dx
+\end{equation*}
+yielding
+\begin{equation}
+\label{eq:weakpde}
+\int_{\Omega} p_t\, \omega\, dx = 
+-\int_{\Omega} (ap)_x \, \omega + \frac{1}{2} \, (b^2p)_x \, \omega_{x}\,dx 
+               +\frac{1}{2} [ p_x \, \omega ]_{x_l}^{x_h}
+\end{equation}
+
+%----------------------------------------------------------------------------------------------------------%
+\section{Finite Elements Setup}
+\label{sec:fokkersolution}
+%----------------------------------------------------------------------------------------------------------%
+
+The interval $[x_l,x_h]$ is discretized by $2M+1$ points $\left\{x_0,x_1, \dots,x_{2M}\right\}$, laid out such that $x_0=x_l$, $x_{2M}=x_h$, $x_j>x_{j-1}$ for $j=1,2,\dots, 2M$, $x_j=\frac{1}{2}(x_{j-1}+x_{j+1})$ for $j=1,3,\dots, 2M-1$. This defines a grid of points which subdivide the region $\Omega$ in elements $\Omega_{c}=[x_{2c},x_{2c+2}]$, $c=0,1,\dots,M-1$. 
+
+\noindent The integral in \eqref{eq:weakpde} can be split into the sum of integrals over each of the elements $\Omega_c$, i.e.
+\begin{equation}
+\label{eq:weakpde2}
+\sum_{c=0}^{M-1}\int_{\Omega_c} p_t\, \omega\, dx =
+\frac{1}{2} [ (b^2p)_x \, \omega ]_{x_l}^{x_h}
++\sum_{c=0}^{M-1}\int_{\Omega_c} -(ap)_x\,\omega -\frac{1 }{2} \, (b^2p)_x \,\omega_{x}\,dx 
+\end{equation}
+
+\noindent Performing in every integral the change of variable 
+\begin{equation}
+\label{eq:changeofvar}
+	 x(\phi) = x_{2c} + \phi \, \dvc
+\end{equation}
+where $\dvc=x_{2c+2}-x_{2c}$, equation \eqref{eq:weakpde2} becomes
+\begin{equation*}
+\sum_{c=0}^{M-1}\dvc\int_0^1 p_t\, \omega\, d\phi =
+\frac{1}{2} [ (b^2p)_x \, \omega ]_{x_l}^{x_h}
++\sum_{c=0}^{M-1}\dvc\int_0^1 -(a_x\, p+a\,p_\phi\phi_x)\,\omega -\frac{1 }{2} \, (2bb_xp+b^2p_\phi\phi_x) \,\omega_{\phi}\phi_x\,d\phi
+\end{equation*}
+and since $\phi_x=1/\dvc$
+\begin{equation}
+\label{eq:weakpde4}
+\sum_{c=0}^{M-1}\dvc\int_0^1 p_t\, \omega\, d\phi =
+\frac{1}{2} [ (b^2p)_x \, \omega ]_{x_l}^{x_h}
++\sum_{c=0}^{M-1}\int_0^1 -(\dvc a_x\, p+a\,p_\phi)\,\omega -\left(bb_xp+\frac{1}{2\dvc} b^2p_\phi\right) \,\omega_{\phi}\,d\phi
+\end{equation}
+It is assumed that at every point in time the solution of PDE \eqref{eq:weakpde4} is approximated within each element $\Omega_c$ as a linear combination of the value of the solution at the 3 grid points $x_{2c},\,x_{2c+1}$ and $x_{2c+2}$
+\begin{equation}
+\label{eq:papprox}
+   p(\phi)=\sum_{n=0}^{2}p_{2c+n}\,\psi_{n,c}(\phi)
+\end{equation}
+where the coefficients $\psi_{i,c}$ are the quadratic basis functions defined on element $c$ and null everywhere else
+\begin{equation}
+\label{eq:basis}
+\begin{split}
+\psi_{0,c}(\phi) &= 2\,(\phi-0.5)\,(\phi-1) \\
+\psi_{1,c}(\phi) &= 4\,\phi\,(1-\phi) \\
+\psi_{2,c}(\phi) &= 2\,\phi\,(\phi-0.5)
+\end{split}
+\end{equation}
+and have derivatives $\zeta_{i,c}$
+\begin{equation}
+\label{eq:basisderiv}
+\begin{aligned}
+\zeta_{0,c}(\phi) &= (\psi_{0,c})_\phi &&= 4\phi-3 \\
+\zeta_{1,c}(\phi) &= (\psi_{1,c})_\phi &&= -8\phi+4 \\
+\zeta_{2,c}(\phi) &= (\psi_{2,c})_\phi &&= 4\phi-1
+\end{aligned}
+\end{equation}
+The Galerkin method (see \cite{hunter}) consists in testing equation \eqref{eq:weakpde} with $2M+1$ different test functions $\omega$, each associated with one of the grid nodes. In particular, the test function $\omega_{j}$ entails of the set of basis functions which are not null at grid node $j$, i.e.
+$$
+   \omega_j=\left\{\begin{aligned}
+     &\psi_{0,0} &&\quad j=0 \\
+     &\psi_{1,(j-1)/2} &&\quad j=1,3,\dots,2M-1 \\
+     &\psi_{2,j/2-1}\,+\,\psi_{0,j/2} &&\quad j=2,4,\dots,2M-2 \\
+     &\psi_{2,M-1} &&\quad j=2M
+   \end{aligned}\right.
+$$
+
+\noindent This yields a system of $2M+1$ first order ordinary differential equations in the $2M+1$ unknowns $p_j$
+\begin{equation}
+\label{eq:sysode}
+\sum_{c=0}^{M-1}\int_0^1 \dvc p_t\, \omega_j\, d\phi =
+\frac{1}{2} [ (b^2p)_x \, \omega_j ]_{x_l}^{x_h}
++\sum_{c=0}^{M-1}\int_0^1 -(\dvc a_x\, p+a\,p_\phi)\,\omega_j -\left(bb_xp+\frac{1}{2\dvc} b^2p_\phi\right) \,(\omega_j)_{\phi}\,d\phi
+\end{equation}
+
+\noindent Note that the boundary terms may be non null only for the first and the last equation, because in $x=x_l$ the only non null test function is $w_0(x_l)=1$ and in $x=x_h$ the only non null test function is $w_{2M}(x_h)=1$. Since these equations are normally replaced by boundary condition equations, there is no need to evaluate the boundary terms. 
+
+\noindent The system of ODEs \eqref{eq:sysode} can be expressed in matrix form as
+\begin{equation}
+   H\,p_t = F \, p
+\end{equation}
+which can be solved with the Cranck Nicolson Galerkin method
+\begin{equation}
+\label{eq:sysodemat}
+   p(t+\Delta t) = \left( H-\frac{\Delta t}{2}F \right)^{-1}\left( H+\frac{\Delta t}{2}F\right) \, p(t)
+\end{equation}
+
+\noindent To decribe the contribution of the integrals on each element to the coefficients of the matrices $H$ and $F$, it is convenient to define the following matrices
+\renewcommand\arraystretch{1.5}
+\begin{alignat*}{3}
+   [I_{i,j}]&=\left[\int_0^1 \psi_i(\varphi)\, \psi_j(\varphi)\,d\varphi\right]&&=\left[
+     \begin{array}{ccc}
+      \frac{2}{15}  & \frac{1}{15} & -\frac{1}{30} \\
+                    & \frac{8}{15}  &  \frac{1}{15} \\
+                    &               & \frac{2}{15} 
+     \end{array}
+   \right] \quad\text{(symmetric)}
+  \\ [J_{i,j}]&=\left[\int_0^1 \zeta_i(\varphi) \,\psi_j(\varphi)\,d\varphi\right]&&=\left[
+     \begin{array}{ccc}
+      -\frac{1}{2}  & -\frac{2}{3} & \frac{1}{6} \\
+      \frac{2}{3}  & 0           &  -\frac{2}{3} \\
+      -\frac{1}{6}  & \frac{2}{3} & \frac{1}{2} 
+     \end{array}
+   \right]  \quad\text{(not symmetric)}
+  \\ [K_{i,j}]&=\left[\int_0^1  \zeta_i(\varphi)\, \zeta_j(\varphi)\,d\varphi\right]&&=\left[
+     \begin{array}{ccc}
+      \frac{7}{3}  & -\frac{8}{3} & \frac{1}{3} \\
+                   & \frac{16}{3}  &  -\frac{8}{3} \\
+                   &               & \frac{7}{3} 
+     \end{array}
+   \right]  \quad\text{(symmetric)}
+    \\ [Q_{i,j}]&=\left[\int_0^1 \varphi \, \zeta_i(\varphi) \, \zeta_j(\varphi)\,d\varphi\right]&&=\left[
+     \begin{array}{ccc}
+      \frac{1}{2}  & -\frac{2}{3} & \frac{1}{6} \\
+                   & \frac{8}{3}  &  -2 \\
+                   &             & \frac{11}{6} 
+     \end{array}
+   \right]  \quad\text{(symmetric)}
+    \\ [R_{i,j}]&=\left[\int_0^1 \varphi \,\zeta_i(\varphi)\, \psi_j(\varphi)\,d\varphi\right]&&=\left[
+     \begin{array}{ccc}
+      -\frac{1}{15}  & -\frac{1}{5} & \frac{1}{10} \\
+      \frac{2}{15}  & -\frac{4}{15}  &  -\frac{8}{15} \\
+      -\frac{1}{15}  & \frac{7}{15} & \frac{13}{30} 
+     \end{array}
+   \right]  \quad\text{(not symmetric)}
+   \\ [S_{i,j}]&=\left[\int_0^1 \varphi^2 \, \zeta_i(\varphi) \, \zeta_j(\varphi)\,d\varphi\right]&&=\left[
+     \begin{array}{ccc}
+      \frac{1}{5}  & -\frac{2}{5} & \frac{1}{5} \\
+                   & \frac{32}{15}  &  -\frac{26}{15} \\
+                   &             & \frac{23}{15} 
+     \end{array}
+   \right]  \quad\text{(symmetric)}
+\end{alignat*}
+where the second index of the functions $\psi$ and $\zeta$ has been omitted for simplicity of notation, as it is always $c$.
+
+\noindent The contribution of integral on element $\Omega_{c}$ to the coefficient in column $2c+n$ and row $2c+z$ of matrix $H$ is
+\begin{equation}
+\label{eq:hcoeff}
+\begin{split}
+  H^{c}_{n,z} &= \dvc \int_0^1 \psi_n\, \psi_z \, d\phi
+   \\ &= \dvc \, I_{n,z}
+\end{split}
+\end{equation}
+and the contribution of integral on element $\Omega_{c}$ to the coefficient in column $2c+n$ and row $2c+z$ of matrix $F$ is
+\begin{equation}
+\label{eq:fcoef}
+  F^{c}_{n,z} = \int_0^1 -(\dvc a_x\, \psi_n+a\,\zeta_n)\,\psi_z -\left(b b_x \psi_n+\frac{1}{2\dvc} b^2 \zeta_n\right) \,\zeta_z\,d\phi
+\end{equation}
+Note that equation \eqref{eq:hcoeff} is model independent.
+
+%----------------------------------------------------------------------------------------------------------%
+\section{Arithmetic Brownian Motion}
+%----------------------------------------------------------------------------------------------------------%
+
+For an Arithmetic Brownian motion the coefficients of model \eqref{eq:model} are
+$$
+   a(t,X) = \mu, \quad b(t,X)=\sigma
+$$
+and equation \eqref{eq:fcoef} simplifies to
+\begin{align*}
+   F^{c}_{n,z} &= \int_0^1 -\mu\,\zeta_n\,\psi_z -\frac{\sigma^2}{2\dvc} \zeta_n \,\zeta_z\,d\phi\\
+   &= -\mu\,J_{n,z}-\frac{\sigma^2}{2\dvc} K_{n,z}
+\end{align*}
+Choosing $x_l$ and $x_h$ sufficiently far from $X_0$, the boundary conditions are
+$$
+   p(x_l,t)=0, \quad p(x_h,t)=0
+$$
+which allow to eliminate the first and last rows and columns from the matrices $H$ and $F$.
+
+%----------------------------------------------------------------------------------------------------------%
+\section{Geometric Brownian Motion}
+%----------------------------------------------------------------------------------------------------------%
+
+For a Geometric Brownian motion the coefficients of model \eqref{eq:model} are
+$$
+   a(t,X) = \mu X, \quad b(t,X)=\sigma X
+$$
+and equation \eqref{eq:fcoef} becomes to
+\begin{align*}
+   F^{c}_{n,z} &= -\int_0^1 (\dvc \mu\, \psi_n+\mu (x_{2c}+\dvc\phi)\,\zeta_n)\,\psi_z +\sigma^2 \left((x_{2c}+\dvc\phi) \psi_n+\frac{1}{2\dvc} (x_{2c}+\dvc\phi) ^2 \zeta_n\right) \,\zeta_z\,d\phi \\
+   &= -\mu(\dvc (I_{n,z}+ R_{n,z})+x_{2c}J_{n,z}) -\sigma^2 \left[
+      x_{2c}J_{z,n}+\dvc R_{z,n}
+        +\frac{x_{2c}^2}{2\dvc}K_{n,z}+x_{2c}Q_{n,z}+\frac{\dvc}{2}S_{n,z}
+     \right]
+\end{align*}
+Choosing $x_l$ and $x_h$ sufficiently far from $X_0$, the boundary conditions are
+$$
+   p(x_l,t)=0, \quad p(x_h,t)=0
+$$
+which allow to eliminate the first and last rows and columns from the matrices $H$ and $F$.
+
+%----------------------------------------------------------------------------------------------------------%
+\section{Ornstein Uhlenbeck Process}
+%----------------------------------------------------------------------------------------------------------%
+
+For a Ornstein Uhlenbeck Process the coefficients of model \eqref{eq:model} are
+$$
+   a(t,X) = \kappa(\theta-X), \quad b(t,X)=\sigma
+$$
+and equation \eqref{eq:fcoef} becomes to
+\begin{align*}
+   F^{c}_{n,z} &= \int_0^1 -(\kappa\theta\,\zeta_n - \dvc \kappa\, \psi_n-\kappa (x_{2c}+\dvc\phi)\,\zeta_n)\,\psi_z -\frac{\sigma^2}{2\dvc} \zeta_n \,\zeta_z\,d\phi\\
+   &= \kappa[\dvc (I_{n,z}+ R_{n,z})+(x_{2c}-\theta)J_{n,z}]
+     -\frac{\sigma^2}{2\dvc} K_{n,z}
+\end{align*}
+Choosing $x_l$ and $x_h$ sufficiently far from $X_0$, the boundary conditions are
+$$
+   p(x_l,t)=0, \quad p(x_h,t)=0
+$$
+which allow to eliminate the first and last rows and columns from the matrices $H$ and $F$.
+
+%----------------------------------------------------------------------------------------------------------%
+\section{Square Root Process}
+%----------------------------------------------------------------------------------------------------------%
+
+For a square root process the coefficients of model \eqref{eq:model} are
+$$
+   a(t,X) = \kappa(\theta-X), \quad b(t,X)=\sigma\sqrt{X}
+$$
+and equation \eqref{eq:fcoef} becomes to
+\begin{align*}
+   F^{c}_{n,z} &= \int_0^1 -(\kappa\theta\,\zeta_n - \dvc \kappa\, \psi_n-\kappa (x_{2c}+\dvc\phi)\,\zeta_n)\,\psi_z -\sigma^2\left(\frac{1}{2} \psi_n+\frac{1}{2\dvc} (x_{2c}+\dvc\phi)\zeta_n\right) \,\zeta_z\,d\phi\\
+   &= \kappa[\dvc (I_{n,z}+ R_{n,z})+(x_{2c}-\theta)J_{n,z}]
+     -\frac{\sigma^2}{2} \left( J_{z,n} +\frac{x_{2c}}{\dvc}K_{n,z}+Q_{n,z}\right)
+\end{align*}
+Choosing $x_l$ and $x_h$ sufficiently far from $X_0$, if Feller condition $2\kappa\theta>\sigma^2$ holds the process can never reach the zero (see \cite{feller}) and the boundary conditions are
+$$
+   p(x_l,t)=0, \quad p(x_h,t)=0
+$$
+which allow to eliminate the first and last rows and columns from the matrices $H$ and $F$.
+
+\noindent If Feller condition is not satisfied, the upper boundary condition is still $p(x_h,t)=0$, but for sufficient large $t$ the probability for the process $X_t$ to hit zero is material and the null Diricheliet boundary condition cannot be used for $x=x_l$. The correct boundary condition is the \textit{zero flux} condition implement at $x_l=0$ (see \cite{feller})
+\begin{equation}
+\label{eq:boundaryl}
+   \lim_{x\rightarrow 0^+} \frac{\sigma^2}{2}(px)_x-\kappa(1-x)p = 0
+\end{equation}
+The first equation of the system of ODEs \eqref{eq:sysode} cannot be eliminated and the contribution of the boundary term must be take into account in it. Because of boundary condition \eqref{eq:boundaryl} such contribution is
+$$
+   -\lim_{x\rightarrow 0^+} \frac{\sigma^2}{2} ( x \, p)_x = 
+    \lim_{x\rightarrow 0^+} \kappa(x-1)p=-\kappa \, p
+$$
+so the term $-\kappa$ must be added to element $(0,0)$ of matrix $F$.
+
+%----------------------------------------------------------------------------------------------------------%
+\begin{thebibliography}{9}
+%----------------------------------------------------------------------------------------------------------%
+
+\bibitem{shreve} Shreve, Stochastic Calculus for Finance II, Continuous Time Models, Springer Finance
+\bibitem{hunter} Hunter, FEM/BEM Notes, 2001
+\bibitem{feller} Feller, Two singular diffusion problems, Annals of Mathematics 54(1), 1951
+
+\end{thebibliography}
+
+
+\end{document}

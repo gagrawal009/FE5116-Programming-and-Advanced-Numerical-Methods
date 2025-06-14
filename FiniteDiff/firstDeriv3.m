@@ -1,0 +1,31 @@
+% firstDeriv3
+%
+% Author: Fabio Cannizzo
+%
+% Numerically evaluate the derivative of the function handle f using left,
+% central and right differences and Richardson extrapolation
+% with an increment of size ranging from hMin to hMax.
+% Compare the value with the analytical one computed via the function handle fp
+% and plot the errors in logarithmc scale.
+
+function firstDeriv3 ( f, fp, fname, x, hMin, hMax )
+	y  = f(x);  % exact value (note the semicolon at the end)
+
+	% h vector: equally spaced points in log space
+	hs = logspace(hMin, hMax, 500);
+	lx = derivRatio( f, x, hs, -1,   0   );           % left estimator
+	rx = derivRatio( f, x, hs,  0,   1   );           % right estimator
+	cx = derivRatio( f, x, hs, -0.5, 0.5 );           % central estimator
+
+	rd =  4/3*cx - derivRatio( f, x, hs, -1, 1 ) / 3; % richardson
+
+	yp = fp(x) * ones(size(hs));                            % exact value
+
+	% plot errors in log space
+	loglog( hs, abs(rx-yp), hs, abs(cx-yp), hs, abs(lx-yp), hs, abs(rd-yp) )
+	axis([hs(1),hs(end),-inf,inf])
+    xlabel('h')
+	ylabel('error')
+	title(['Error for derivative of ', fname, ' in x=', num2str(x) ])
+	legend( 'right', 'central', 'left', 'richardson', 'location', 'west')
+end
